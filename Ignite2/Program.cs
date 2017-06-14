@@ -10,7 +10,7 @@ namespace Ignite2
     {
         static void Main(string[] args)
         {
-            var cacheWrappoer = new CacheWrapper();
+            CacheWrapper.Instance.GetHashCode();
 
             Console.ReadLine();
         }

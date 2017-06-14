@@ -10,10 +10,12 @@ using System.Threading.Tasks;
 using Apache.Ignite.Core;
 using Apache.Ignite.Core.Cache;
 using Apache.Ignite.Core.Cache.Configuration;
+using Apache.Ignite.Core.Compute;
 using Apache.Ignite.Core.DataStructures.Configuration;
 using Apache.Ignite.Core.Events;
 using Apache.Ignite.Core.Lifecycle;
 using Apache.Ignite.Core.Log;
+using Apache.Ignite.Core.Messaging;
 
 namespace Ignite2
 {
@@ -64,7 +66,10 @@ namespace Ignite2
 
         public bool Invoke(T evt)
         {
-            return _invoker(evt);
+            Console.WriteLine("START " + evt);
+            var ret = _invoker(evt);
+            Console.WriteLine("END " + evt);
+            return ret;
         }
     }
 
@@ -83,7 +88,9 @@ namespace Ignite2
     {
         private IIgnite _ignite;
         private ICache<string, byte[]> _cache;
-        private ConcurrentDictionary<string, object> _localCache = new ConcurrentDictionary<string, object>();
+        public ConcurrentDictionary<string, string> _localCache = new ConcurrentDictionary<string, string>();
+
+        public static CacheWrapper Instance = new CacheWrapper();
 
         private Timer _timer;
 
@@ -115,8 +122,10 @@ namespace Ignite2
 
             events.EnableLocal(EventType.CacheObjectPut, EventType.CacheObjectRemoved, EventType.CacheObjectExpired, EventType.CacheRebalanceObjectUnloaded, EventType.CacheRebalanceObjectLoaded);
             events.EnableLocal(EventType.CacheRebalanceStopped);
-            events.LocalListen(new EventListener<CacheEvent>(Invoke), EventType.CacheObjectPut, EventType.CacheObjectRemoved, EventType.CacheObjectExpired, EventType.CacheRebalanceObjectUnloaded, EventType.CacheRebalanceObjectLoaded);
-            events.LocalListen(new EventListener<CacheRebalancingEvent>(Invoke), EventType.CacheRebalanceStopped);
+            //events.LocalListen(new EventListener<CacheEvent>(Invoke), EventType.CacheObjectPut, EventType.CacheObjectRemoved, EventType.CacheObjectExpired, EventType.CacheRebalanceObjectUnloaded, EventType.CacheRebalanceObjectLoaded);
+            //events.LocalListen(new EventListener<CacheRebalancingEvent>(Invoke), EventType.CacheRebalanceStopped);
+            events.LocalListen<CacheEvent>(this, EventType.CacheObjectPut, EventType.CacheObjectRemoved, EventType.CacheObjectExpired, EventType.CacheRebalanceObjectUnloaded, EventType.CacheRebalanceObjectLoaded);
+            events.LocalListen<CacheRebalancingEvent>(this, EventType.CacheRebalanceStopped);
 
             _cache = _ignite.GetOrCreateCache<string, byte[]>("MyCache");
             _timer =
@@ -151,20 +160,57 @@ namespace Ignite2
                 if (_ignite.GetAffinity(_cache.Name).IsPrimary(_ignite.GetCluster().GetLocalNode(), entry.Key))
                 {
                     Console.WriteLine("Initializing local cache (key={0})", entry.Key);
-                    _localCache[entry.Key] = "test";
+                    _localCache[entry.Key] = Encoding.UTF8.GetString(entry.Value);
                 }
             }
             Console.WriteLine("END Syncing local cache (local={0}/{1})", _localCache.Count, cnt);
             
 
             // Populate cache when the first node starts
-            if (_ignite.GetCluster().GetNodes().Count  == 1)
+            if (_ignite.GetCluster().GetNodes().Count == 1)
             {
                 for (var i = 0; i < 100; i++)
                 {
-                    _cache.Put(i.ToString(), Encoding.UTF8.GetBytes("Hello World !"));
+                    _cache.Put(i.ToString(), Encoding.UTF8.GetBytes("Hello World ! " + i));
                 }
             }
+            else
+            {
+                Thread.Sleep(2000);
+                ThreadPool.QueueUserWorkItem((state) =>
+                {
+
+                    var topic = DateTime.Now.Ticks.ToString();
+                    var responseListener = new CustomScanQueryResponseListener();
+                    try
+                    {
+                        Console.WriteLine("Listening for responses");
+                        _ignite.GetMessaging().LocalListen(responseListener, topic);
+
+                        Console.WriteLine("Send CustomScanQueryTask");
+                        var results = _ignite.GetCluster()
+                            //.ForDataNodes("MyCache")
+                            .ForCacheNodes("MyCache")
+                            .GetCompute()
+                            .Broadcast(new CustomScanQueryTask
+                            {
+                                CacheName = "MyCache",
+                                Predicate = new Predicate() { content = "5" },
+                                Topic = topic
+                            });
+
+                        Console.WriteLine("{0} responses received via listener, {1} responses returned by task", responseListener.Responses.Count, results.Sum());
+                    }
+                    finally
+                    {
+                        _ignite.GetMessaging().StopLocalListen(responseListener, topic);
+                    }
+                });
+
+
+            }
+
+            
         }
 
         #region Implementation of IEventListener<in CacheEvent>
@@ -186,7 +232,7 @@ namespace Ignite2
                     if (!_ignite.GetAffinity(_cache.Name).IsPrimary(_ignite.GetCluster().GetLocalNode(), entry.Key))
                     {
                         Console.WriteLine("Cleaning local cache (key={0})", entry.Key);
-                        object oldValue;
+                        string oldValue;
                         _localCache.TryRemove(entry.Key, out oldValue);
                     }
                 }
@@ -236,11 +282,70 @@ namespace Ignite2
                 || evt.Type == EventType.CacheRebalanceObjectUnloaded)
             {
                 Console.WriteLine("Cleaning local cache (key={0})", evt.Key);
-                object oldValue;
+                string oldValue;
                 _localCache.TryRemove((string)evt.Key, out oldValue);
                 return true;
             }
 
+            return true;
+        }
+
+        #endregion
+    }
+
+    [Serializable]
+    public class Predicate
+    {
+        public string content { get; set; }
+
+        public bool Invoke(string val)
+        {
+            return val.Contains(content);
+        }
+    }
+
+    [Serializable]
+    public class CustomScanQueryTask : IComputeFunc<int> /*IComputeAction*/
+    {
+        public String CacheName { get; set; }
+        public Predicate Predicate { get; set; }
+        public string Topic { get; set; }
+
+        #region Implementation of IComputeAction
+
+        public int Invoke()
+        {
+            var messaging = Ignition.TryGetIgnite().GetMessaging();
+
+            var resCount = 0;
+            
+            Console.WriteLine("Executing CustomScanQueryTask");
+            foreach (var kvp in CacheWrapper.Instance._localCache.Where(kvp => Predicate.Invoke(kvp.Value)))
+            {
+                Console.WriteLine("Matching value = {0}", kvp.Value);
+                if (Topic != null)
+                {
+                    messaging.Send(kvp.Value, Topic);
+                }
+                resCount++;
+            }
+
+            return resCount;
+        }
+
+        #endregion
+    }
+
+    public class CustomScanQueryResponseListener : IMessageListener<string>
+    {
+        public readonly List<string> Responses = new List<string>();
+
+        #region Implementation of IMessageListener<in string>
+
+        public bool Invoke(Guid nodeId, string message)
+        {
+            Console.WriteLine("Response received from node : " + nodeId);
+            Responses.Add(message);
             return true;
         }
 
