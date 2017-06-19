@@ -107,6 +107,7 @@ namespace Ignite2
                         Name = "MyCache",
                         RebalanceMode = CacheRebalanceMode.Sync,
                         WriteSynchronizationMode = CacheWriteSynchronizationMode.PrimarySync,
+                        
                     }
                 },
                 Logger = new Logger(),
