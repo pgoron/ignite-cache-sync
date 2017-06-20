@@ -1,7 +1,9 @@
 ﻿using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
+using System.Net;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -12,31 +14,27 @@ using Apache.Ignite.Core.Events;
 
 namespace CacheWrapper
 {
-    class CacheWrapperManager
+    public class CacheWrapperManager
     {
         private const string CacheWrapperManagerInstallKey = "cachewrapper-manager";
         private const string CacheWrapperConfCacheName = "cachewrapper-conf";
 
-        private readonly ICache<string, CacheWrapperConfiguration> _cacheWrapperConfCache;
-        private readonly ConcurrentDictionary<string, ICacheWrapper> _cacheWrappers;
+        private static readonly ConcurrentDictionary<IIgnite, CacheWrapperManager> _cacheWrapperManagers = new ConcurrentDictionary<IIgnite, CacheWrapperManager>();
+        private readonly ConcurrentDictionary<string, Lazy<ICacheWrapper>> _cacheWrappers;
+
         private readonly IIgnite _ignite;
+        private readonly ICache<string, CacheWrapperConfiguration> _cacheWrapperConfCache;
 
         internal static CacheWrapperManager GetOrAddCacheWrapperManager(IIgnite ignite)
         {
-            var userAttributes = ignite.GetConfiguration().UserAttributes;
-            object cacheWrapperManager;
-            if (!userAttributes.TryGetValue(CacheWrapperManagerInstallKey, out cacheWrapperManager))
-            {
-                cacheWrapperManager = new CacheWrapperManager(ignite);
-                userAttributes[CacheWrapperManagerInstallKey] = cacheWrapperManager;
-            }
-            return (CacheWrapperManager) cacheWrapperManager;
+            return _cacheWrapperManagers.GetOrAdd(ignite, i => new CacheWrapperManager(i));
         }
 
         private CacheWrapperManager(IIgnite ignite)
         {
+            Console.WriteLine("[CacheWrapperManager] initializing a new CacheWrapperManagr");
+            _cacheWrappers = new ConcurrentDictionary<string, Lazy<ICacheWrapper>>();
             _ignite = ignite;
-            _cacheWrappers = new ConcurrentDictionary<string, ICacheWrapper>();
 
             var events = _ignite.GetEvents();
             events.EnableLocal(EventType.CacheStarted, EventType.CacheStopped, EventType.CacheRebalanceStopped, EventType.CacheObjectPut, EventType.CacheObjectRemoved, EventType.CacheRebalanceObjectLoaded, EventType.CacheRebalanceObjectUnloaded);
@@ -49,7 +47,7 @@ namespace CacheWrapper
                 CacheMode = CacheMode.Replicated,
                 WriteSynchronizationMode = CacheWriteSynchronizationMode.FullSync
             });
-            
+
             foreach (var cacheEntry in _cacheWrapperConfCache)
             {
                 if (!_cacheWrappers.ContainsKey(cacheEntry.Key))
@@ -96,30 +94,31 @@ namespace CacheWrapper
 
         private ICacheWrapper GetOrCreateLocalCacheWrapper(CacheWrapperConfiguration cacheWrapperConfiguration)
         {
-            return _cacheWrappers.GetOrAdd(cacheWrapperConfiguration.Name, name =>
+            return _cacheWrappers.GetOrAdd(cacheWrapperConfiguration.Name, s => new Lazy<ICacheWrapper>(() =>
             {
                 var cacheWrapperType = typeof(CacheWrapper<,>).MakeGenericType(
                     Type.GetType(cacheWrapperConfiguration.KeyTypeFullName), Type.GetType(cacheWrapperConfiguration.ValueTypeFullName));
 
-                var method = typeof (IIgnite).GetMethod("GetOrCreateCache", new[] {typeof(CacheConfiguration)});
-                method = method.MakeGenericMethod(Type.GetType(cacheWrapperConfiguration.KeyTypeFullName), typeof (byte[]));
-                var igniteCache = method.Invoke(_ignite, new object[] { cacheWrapperConfiguration } );
+                var method = typeof(IIgnite).GetMethod("GetOrCreateCache", new[] { typeof(CacheConfiguration) });
+                method = method.MakeGenericMethod(Type.GetType(cacheWrapperConfiguration.KeyTypeFullName), typeof(byte[]));
+                var igniteCache = method.Invoke(_ignite, new object[] { cacheWrapperConfiguration });
 
                 var cacheWrapper = (ICacheWrapper)Activator.CreateInstance(cacheWrapperType, cacheWrapperConfiguration, igniteCache);
 
                 Console.WriteLine("[CacheWrapperManager] local CacheWrapper={0} created.", cacheWrapperConfiguration.Name);
+                Console.WriteLine(new StackTrace());
 
                 return cacheWrapper;
-            });
+            })).Value;
         }
 
         internal void OnCacheRebalanceStoppedEvent(string cacheName)
         {
-            ICacheWrapper cacheWrapper;
+            Lazy<ICacheWrapper> cacheWrapper;
             if (_cacheWrappers.TryGetValue(cacheName, out cacheWrapper))
             {
                 Console.WriteLine("[CacheWrapperManager] Syncing cache wrapper {0} due a CacheRebalancedStoppedEvent", cacheName);
-                ThreadPool.QueueUserWorkItem(state => cacheWrapper.Sync());
+                ThreadPool.QueueUserWorkItem(state => cacheWrapper.Value.Sync());
             }
         }
 
@@ -137,7 +136,7 @@ namespace CacheWrapper
 
         internal void OnCacheStoppedEvent(string cacheName)
         {
-            ICacheWrapper cacheWrapper;
+            Lazy<ICacheWrapper> cacheWrapper;
             if (_cacheWrappers.TryRemove(cacheName, out cacheWrapper))
             {
                 Console.WriteLine("[CacheWrapperManager] cacheName={0} stopped.");

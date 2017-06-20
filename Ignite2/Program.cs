@@ -17,6 +17,7 @@ namespace Ignite2
         static void Main(string[] args)
         {
             var conf = new IgniteConfiguration();
+
             using (var ignite = Ignition.Start(conf))
             {
                 var cache = ignite.GetOrCreateCacheWrapper<string, Trade>(new CacheWrapperConfiguration { Name = "MyCache", CacheMode = CacheMode.Partitioned, Backups = 1});

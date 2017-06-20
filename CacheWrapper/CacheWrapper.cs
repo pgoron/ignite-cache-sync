@@ -2,6 +2,7 @@
 using System.Collections;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.IO.Compression;
 using System.Linq;
@@ -290,16 +291,30 @@ namespace CacheWrapper
             var resCount = 0;
 
             Console.WriteLine("Executing CustomScanQueryTask");
+            var scanSw = new Stopwatch();
+            var sendSw = new Stopwatch();
+            var totalSw = new Stopwatch();
+            totalSw.Start();
+            scanSw.Start();
             foreach (var kvp in cacheWrapper.Where(kvp => Predicate.Invoke(new CacheEntry<TK, TV>(kvp))))
             {
-                Console.WriteLine("Matching value = {0}", kvp.Value);
+                scanSw.Stop();
+
+                Console.WriteLine("Matching value = {0}", kvp.Key);
                 if (Topic != null)
                 {
-                    messaging.Send(cacheWrapper.IgniteCache.Get(kvp.Key), Topic);
+                    sendSw.Start();
+                    messaging.Send(new KeyValuePair<TK, byte[]>(kvp.Key, cacheWrapper.IgniteCache.Get(kvp.Key)), Topic);
+                    sendSw.Stop();
                 }
                 resCount++;
-            }
 
+                scanSw.Start();
+            }
+            scanSw.Stop();
+            totalSw.Stop();
+            
+            Console.WriteLine("[CacheWrapper] Query execution summary : Scan={0}, Send={1}, Total={2}, MatchCount={3}", scanSw.Elapsed, sendSw.Elapsed, totalSw.Elapsed, resCount);
             return resCount;
         }
 
