@@ -1,18 +1,17 @@
 ﻿using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
-using System.Runtime.InteropServices;
-using System.Text;
 using System.Threading;
-using System.Threading.Tasks;
 using Apache.Ignite.Core;
+using Apache.Ignite.Core.Binary;
 using Apache.Ignite.Core.Cache;
 using Apache.Ignite.Core.Cache.Configuration;
 using CacheWrapper;
 
 namespace Ignite2
 {
-    class Program
+    public class Program
     {
         static void Main(string[] args)
         {
@@ -42,7 +41,7 @@ namespace Ignite2
             }
         }
 
-        static IEnumerable<KeyValuePair<string, Trade>> GenerateTestData(int count)
+        public static IEnumerable<KeyValuePair<string, Trade>> GenerateTestData(int count)
         {
             foreach (var i in Enumerable.Range(1, count))
             {
@@ -72,16 +71,15 @@ namespace Ignite2
         }
     }
 
-
     [Serializable]
-    class Trade
+    public class Trade
     {
         public string Id { get; set; }
         public Product Product { get; set; }
     }
 
     [Serializable]
-    class Product
+    public class Product
     {
         public string Instrument { get; set; }
         public List<Flow> Flows { get; }
@@ -93,7 +91,7 @@ namespace Ignite2
     }
 
     [Serializable]
-    class Flow
+    public class Flow
     {
         public int FlowId { get; set; }
         public string Currency { get; set; }
@@ -107,15 +105,60 @@ namespace Ignite2
     }
 
     [Serializable]
-    class ScanQueryFilter : ICacheEntryFilter<String, Trade>
+    public class ScanQueryFilter : ICacheEntryFilter<String, Trade>
     {
         #region Implementation of ICacheEntryFilter<in string,in Trade>
 
         public bool Invoke(ICacheEntry<string, Trade> entry)
         {
-            return entry.Value.Product.Flows.Any(f => f.Currency == "EUR" && f.Index == "EON");
+            return entry.Value.Product.Flows.Any(f => f.Currency == "EUR" && f.Index == "EON1");
         }
 
         #endregion
+    }
+
+    [Serializable]
+    public class ScanQueryCachingFilter : ICacheEntryFilter<string, IBinaryObject>
+    {
+        private static readonly ConcurrentDictionary<string, Trade> CachedTrades 
+            = new ConcurrentDictionary<string, Trade>();
+
+        #region Implementation of ICacheEntryFilter<in string,in Trade>
+
+        public bool Invoke(ICacheEntry<string, IBinaryObject> entry)
+        {
+            var value = CachedTrades.GetOrAdd(entry.Key, k => entry.Value.Deserialize<Trade>());
+
+            return value.Product.Flows.Any(f => f.Currency == "EUR" && f.Index == "EON1");
+        }
+
+        #endregion
+    }
+
+    [Serializable]
+    public class ScanQueryKeyOnlyFilter : ICacheEntryFilter<string, int>
+    {
+        private static readonly ConcurrentDictionary<string, Trade> CachedTrades 
+            = new ConcurrentDictionary<string, Trade>();
+
+        private readonly string _dataCacheName;
+        
+        [NonSerialized]
+        private ICache<string, Trade> _dataCache;
+
+        public ScanQueryKeyOnlyFilter(string dataCacheName)
+        {
+            _dataCacheName = dataCacheName;
+        }
+
+
+        public bool Invoke(ICacheEntry<string, int> entry)
+        {
+            _dataCache = _dataCache ?? Ignition.GetIgnite().GetCache<string, Trade>(_dataCacheName);
+
+            var value = CachedTrades.GetOrAdd(entry.Key, k => _dataCache[k]);
+
+            return value.Product.Flows.Any(f => f.Currency == "EUR" && f.Index == "EON1");
+        }
     }
 }
