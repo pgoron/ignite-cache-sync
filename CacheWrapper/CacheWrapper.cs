@@ -120,7 +120,7 @@ namespace CacheWrapper
             }, ctk);
 
             var receivedResponses = 0;
-            while (!scanQueryTask.IsCompleted && !scanQueryTask.IsCanceled && !scanQueryTask.IsFaulted)
+            while (!scanQueryTask.IsCompleted && !scanQueryTask.IsCanceled && !scanQueryTask.IsFaulted || receivedResponses != resultCount)
             {
                 KeyValuePair<TK, byte[]> value;
                 if (results.TryTake(out value, 1000, ctk))
