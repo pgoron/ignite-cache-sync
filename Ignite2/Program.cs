@@ -116,7 +116,7 @@ namespace Ignite2
 
         public static bool FilterTrade(Trade value)
         {
-            return value.Product.Flows.Any(f => f.Currency == "EUR" && f.Index == "EON1");
+            return value.Product.Flows.Any(f => f.Currency == "EUR" && f.Index == "EON");
         }
 
         #endregion

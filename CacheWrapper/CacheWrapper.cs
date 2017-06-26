@@ -120,16 +120,19 @@ namespace CacheWrapper
             }, ctk);
 
             var receivedResponses = 0;
-            KeyValuePair<TK, byte[]> value;
-            while (results.TryTake(out value, 100, ctk) && !scanQueryTask.IsCompleted && !scanQueryTask.IsCanceled && !scanQueryTask.IsFaulted)
+            while (!scanQueryTask.IsCompleted && !scanQueryTask.IsCanceled && !scanQueryTask.IsFaulted)
             {
-                yield return value;
-                receivedResponses++;
+                KeyValuePair<TK, byte[]> value;
+                if (results.TryTake(out value, 1000, ctk))
+                {
+                    yield return value;
+                    receivedResponses++;
+                }
             }
 
             if (receivedResponses != resultCount)
             {
-                Console.WriteLine("mismatch response count");
+                throw new InvalidOperationException("mismatch response count");
             }
         }
 
@@ -272,7 +275,7 @@ namespace CacheWrapper
 
             var resCount = 0;
 
-            Console.WriteLine("Executing CustomScanQueryTask");
+            //Console.WriteLine("Executing CustomScanQueryTask");
             var scanSw = new Stopwatch();
             var sendSw = new Stopwatch();
             var totalSw = new Stopwatch();
@@ -282,7 +285,7 @@ namespace CacheWrapper
             {
                 scanSw.Stop();
 
-                Console.WriteLine("Matching value = {0}", kvp.Key);
+                //Console.WriteLine("Matching value = {0}", kvp.Key);
                 if (Topic != null)
                 {
                     sendSw.Start();

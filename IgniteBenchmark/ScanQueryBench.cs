@@ -114,14 +114,16 @@ namespace IgniteBenchmark
         [Benchmark]
         public void ComputeScanQuery()
         {
-            var res = _wrappedCache.ScanQuery(new ScanQueryFilter(), CancellationToken.None).ToList();
+            var res = _wrappedCache.ScanQuery(new ScanQueryFilter(), CancellationToken.None)
+                .Select(x => new KeyValuePair<string, Trade>(x.Key, Serializer.ByteArrayToObject<Trade>(x.Value)))
+                .ToList();
 
             ValidateResults(res);
         }
 
         private static void ValidateResults<T>(ICollection<T> res)
         {
-            if (res.Count != 0)
+            if (res.Count != 100)
             {
                 throw new InvalidOperationException("Invalid results: " + res.Count);
             }
@@ -132,7 +134,7 @@ namespace IgniteBenchmark
     {
         public bool Invoke(ICacheEntry<string, int> entry)
         {
-            return entry.Value == 1;
+            return entry.Value == 0;
         }
     }
 }
