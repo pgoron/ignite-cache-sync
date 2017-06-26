@@ -90,7 +90,7 @@ namespace CacheWrapper
 
             var scanQueryTask = Task.Run(() =>
             {
-                var topic = DateTime.Now.Ticks.ToString();
+                var topic = Guid.NewGuid().ToString();
                 var responseListener = new CustomScanQueryResponseListener<TK, TV>(kvp => results.Add(kvp, ctk));
                 try
                 {
