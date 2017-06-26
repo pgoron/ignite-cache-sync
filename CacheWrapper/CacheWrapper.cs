@@ -24,7 +24,7 @@ namespace CacheWrapper
         void HandleCacheEvent(CacheEvent evt);
     }
 
-    public interface ICacheWrapper<TK, TV> : IEnumerable<KeyValuePair<TK, TV>>
+    public interface ICacheWrapper<TK, TV> : IEnumerable<KeyValuePair<TK, TV>>, ICacheWrapper
     {
         ICache<TK, byte[]> IgniteCache { get; }
 
@@ -53,7 +53,7 @@ namespace CacheWrapper
 
         public void Put(TK key, TV value)
         {
-            var val = ObjectToByteArray(value);
+            var val = Serializer.ObjectToByteArray(value);
             if (_igniteCache.Ignite.GetAffinity(_configuration.Name)
                     .IsPrimary(_igniteCache.Ignite.GetCluster().GetLocalNode(), key))
             {
@@ -73,7 +73,7 @@ namespace CacheWrapper
                     _localCache.TryAdd(kvp.Key, kvp.Value);
                 }
 
-                var val = ObjectToByteArray(kvp.Value);
+                var val = Serializer.ObjectToByteArray(kvp.Value);
                 Console.WriteLine("serialized {0} : {1} bytes", kvp.Key, val.Length);
 
                 return new KeyValuePair<TK, byte[]>(kvp.Key, val);
@@ -94,10 +94,10 @@ namespace CacheWrapper
                 var responseListener = new CustomScanQueryResponseListener<TK, TV>(kvp => results.Add(kvp, ctk));
                 try
                 {
-                    Console.WriteLine("Listening for responses");
+                    //Console.WriteLine("Listening for responses");
                     _igniteCache.Ignite.GetMessaging().LocalListen(responseListener, topic);
 
-                    Console.WriteLine("Send CustomScanQueryTask");
+                    //Console.WriteLine("Send CustomScanQueryTask");
                     var result = _igniteCache.Ignite.GetCluster()
                         .ForCacheNodes(_igniteCache.Name)
                         .GetCompute()
@@ -111,7 +111,7 @@ namespace CacheWrapper
                     resultCount = result.Sum();
                     results.CompleteAdding();
 
-                    Console.WriteLine("All broadcast tasks finished");
+                    //Console.WriteLine("All broadcast tasks finished");
                 }
                 finally
                 {
@@ -143,8 +143,8 @@ namespace CacheWrapper
                 keys.Add(cacheEntry.Key);
                 _localCache.GetOrAdd(cacheEntry.Key, key =>
                 {
-                    Console.WriteLine("deserializing {0} : {1} bytes", key, cacheEntry.Value.Length);
-                    return ByteArrayToObject(cacheEntry.Value);
+                    //Console.WriteLine("deserializing {0} : {1} bytes", key, cacheEntry.Value.Length);
+                    return Serializer.ByteArrayToObject<TV>(cacheEntry.Value);
                 });
             }
 
@@ -167,7 +167,7 @@ namespace CacheWrapper
                 {
                     if (evt.HasOldValue)
                     {
-                        var val = ByteArrayToObject(((byte[]) evt.NewValue));
+                        var val = Serializer.ByteArrayToObject<TV>(((byte[]) evt.NewValue));
                         _localCache[(TK) evt.Key] = val;
                         Console.WriteLine("[CacheWrapper] CacheEvent='{0}' key='{1}' updated in local cache", evt.Name, evt.Key);
                     }
@@ -178,7 +178,7 @@ namespace CacheWrapper
                         {
                             Console.WriteLine("[CacheWrapper] CacheEvent='{0}' key='{1}' added to local cache", evt.Name, evt.Key);
                             added = true;
-                            return ByteArrayToObject(((byte[]) evt.NewValue));
+                            return Serializer.ByteArrayToObject<TV>(((byte[]) evt.NewValue));
                         });
 
                         if (!added)
@@ -213,24 +213,6 @@ namespace CacheWrapper
         private void PrintStats()
         {
             Console.WriteLine("[CacheWrapper] {0} stats (primary={1}/backup={2}/local={3})", _configuration.Name, _igniteCache.GetLocalSize(CachePeekMode.Primary), _igniteCache.GetLocalSize(CachePeekMode.Backup), _localCache.Count);
-        }
-
-        private TV ByteArrayToObject(byte[] data)
-        {
-            var ms = new MemoryStream(data);
-            var compressionStream = new GZipStream(ms, System.IO.Compression.CompressionMode.Decompress);
-            var bf = new BinaryFormatter();
-            return (TV) bf.Deserialize(compressionStream);
-        }
-
-        private byte[] ObjectToByteArray(TV value)
-        {
-            var ms = new MemoryStream();
-            var compressionStream = new GZipStream(ms, System.IO.Compression.CompressionMode.Compress);
-            var bf = new BinaryFormatter();
-            bf.Serialize(compressionStream, value);
-            compressionStream.Dispose();
-            return ms.ToArray();
         }
 
         #region Implementation of IEnumerable

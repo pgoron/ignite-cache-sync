@@ -12,6 +12,7 @@ using Apache.Ignite.Core.Discovery.Tcp.Static;
 using BenchmarkDotNet.Attributes;
 using CacheWrapper;
 using Ignite2;
+using CacheWrapper = Ignite2.CacheWrapper;
 
 namespace IgniteBenchmark
 {
@@ -40,7 +41,7 @@ namespace IgniteBenchmark
 
             // Start more nodes.
             cfg.AutoGenerateIgniteInstanceName = true;
-            Ignition.Start(cfg);
+            //Ignition.Start(cfg);
 
             // Prepare caches.
             _cache = ignite.CreateCache<string, Trade>("cache");
@@ -51,8 +52,17 @@ namespace IgniteBenchmark
             _zeroValueCache = ignite.CreateCache<string, int>("zeroVal");
             _zeroValueCache.PutAll(_cache.Select(x => new KeyValuePair<string, int>(x.Key, 0)));
 
-            _wrappedCache = ignite.GetOrCreateCacheWrapper<string, Trade>(
-                new CacheWrapperConfiguration {Name = _cache.Name});
+            var byteArrayCache = ignite.CreateCache<string, byte[]>("byteArray");
+            byteArrayCache.PutAll(_cache.Select(
+                x => new KeyValuePair<string, byte[]>(x.Key, Serializer.ObjectToByteArray(x.Value))));
+
+            _wrappedCache = GetCacheWrapper(byteArrayCache);
+            _wrappedCache.Sync();  // TODO: This does not work properly with two nodes in one process.
+        }
+
+        private static ICacheWrapper<string, Trade> GetCacheWrapper(ICache<string, byte[]> igniteCache)
+        {
+            return igniteCache.Ignite.GetOrCreateCacheWrapper<string, Trade>(new CacheWrapperConfiguration { Name = igniteCache.Name });
         }
 
         [Benchmark]
