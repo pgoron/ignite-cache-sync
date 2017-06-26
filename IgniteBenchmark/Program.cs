@@ -8,8 +8,12 @@ namespace IgniteBenchmark
     {
         static void Main(string[] args)
         {
-            BenchmarkRunner.Run<ScanQueryBench>(GetConfig());
+            //BenchmarkRunner.Run<ScanQueryBench>(GetConfig());
+            
             //new ScanQueryBench().ComputeScanQuery();
+            //new ScanQueryBench().NormalScanQuery();
+            //new ScanQueryBench().CachedScanQuery();
+            new ScanQueryBench().TwoCacheScanQuery();
         }
 
         private static IConfig GetConfig()

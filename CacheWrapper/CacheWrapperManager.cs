@@ -105,8 +105,8 @@ namespace CacheWrapper
 
                 var cacheWrapper = (ICacheWrapper)Activator.CreateInstance(cacheWrapperType, cacheWrapperConfiguration, igniteCache);
 
-                Console.WriteLine("[CacheWrapperManager] local CacheWrapper={0} created.", cacheWrapperConfiguration.Name);
-                Console.WriteLine(new StackTrace());
+                //Console.WriteLine("[CacheWrapperManager] local CacheWrapper={0} created.", cacheWrapperConfiguration.Name);
+                //Console.WriteLine(new StackTrace());
 
                 return cacheWrapper;
             })).Value;

@@ -18,8 +18,7 @@ namespace IgniteBenchmark
 {
     public class ScanQueryBench
     {
-        private readonly ICache<string, Trade> _cache;
-        private readonly ICache<string, IBinaryObject> _binCache;
+        private readonly ICache<string, byte[]> _cache;
         private readonly ICache<string, int> _zeroValueCache;
         private readonly ICacheWrapper<string, Trade> _wrappedCache;
 
@@ -44,19 +43,14 @@ namespace IgniteBenchmark
             //Ignition.Start(cfg);
 
             // Prepare caches.
-            _cache = ignite.CreateCache<string, Trade>("cache");
-            _cache.PutAll(Ignite2.Program.GenerateTestData(100));
-
-            _binCache = _cache.WithKeepBinary<string, IBinaryObject>();
+            _cache = ignite.CreateCache<string, byte[]>("cache");
+            _cache.PutAll(Ignite2.Program.GenerateTestData(100)
+                .Select(x => new KeyValuePair<string, byte[]>(x.Key, Serializer.ObjectToByteArray(x.Value))));
 
             _zeroValueCache = ignite.CreateCache<string, int>("zeroVal");
             _zeroValueCache.PutAll(_cache.Select(x => new KeyValuePair<string, int>(x.Key, 0)));
 
-            var byteArrayCache = ignite.CreateCache<string, byte[]>("byteArray");
-            byteArrayCache.PutAll(_cache.Select(
-                x => new KeyValuePair<string, byte[]>(x.Key, Serializer.ObjectToByteArray(x.Value))));
-
-            _wrappedCache = GetCacheWrapper(byteArrayCache);
+            _wrappedCache = GetCacheWrapper(_cache);
             _wrappedCache.Sync();  // TODO: This does not work properly with two nodes in one process.
         }
 
@@ -68,9 +62,9 @@ namespace IgniteBenchmark
         [Benchmark]
         public void NormalScanQuery()
         {
-            var res = _cache.Query(new ScanQuery<string, Trade>
+            var res = _cache.Query(new ScanQuery<string, byte[]>
             {
-                Filter = new ScanQueryFilter()
+                Filter = new ScanQueryFilterByte()
             }).GetAll();
 
             ValidateResults(res);
@@ -79,7 +73,7 @@ namespace IgniteBenchmark
         [Benchmark]
         public void CachedScanQuery()
         {
-            var res = _binCache.Query(new ScanQuery<string, IBinaryObject>
+            var res = _cache.Query(new ScanQuery<string, byte[]>
             {
                 Filter = new ScanQueryCachingFilter()
             }).GetAll();

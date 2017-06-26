@@ -4,7 +4,6 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using Apache.Ignite.Core;
-using Apache.Ignite.Core.Binary;
 using Apache.Ignite.Core.Cache;
 using Apache.Ignite.Core.Cache.Configuration;
 using CacheWrapper;
@@ -123,21 +122,26 @@ namespace Ignite2
     }
 
     [Serializable]
-    public class ScanQueryCachingFilter : ICacheEntryFilter<string, IBinaryObject>
+    public class ScanQueryFilterByte : ICacheEntryFilter<string, byte[]>
+    {
+        public bool Invoke(ICacheEntry<string, byte[]> entry)
+        {
+            return ScanQueryFilter.FilterTrade(Serializer.ByteArrayToObject<Trade>(entry.Value));
+        }
+    }
+
+    [Serializable]
+    public class ScanQueryCachingFilter : ICacheEntryFilter<string, byte[]>
     {
         private static readonly ConcurrentDictionary<string, Trade> CachedTrades 
             = new ConcurrentDictionary<string, Trade>();
 
-        #region Implementation of ICacheEntryFilter<in string,in Trade>
-
-        public bool Invoke(ICacheEntry<string, IBinaryObject> entry)
+        public bool Invoke(ICacheEntry<string, byte[]> entry)
         {
-            var value = CachedTrades.GetOrAdd(entry.Key, k => entry.Value.Deserialize<Trade>());
+            var value = CachedTrades.GetOrAdd(entry.Key, k => Serializer.ByteArrayToObject<Trade>(entry.Value));
 
             return ScanQueryFilter.FilterTrade(value);
         }
-
-        #endregion
     }
 
     [Serializable]
@@ -149,7 +153,7 @@ namespace Ignite2
         private readonly string _dataCacheName;
         
         [NonSerialized]
-        private ICache<string, Trade> _dataCache;
+        private ICache<string, byte[]> _dataCache;
 
         public ScanQueryKeyOnlyFilter(string dataCacheName)
         {
@@ -159,9 +163,9 @@ namespace Ignite2
 
         public bool Invoke(ICacheEntry<string, int> entry)
         {
-            _dataCache = _dataCache ?? Ignition.GetIgnite().GetCache<string, Trade>(_dataCacheName);
+            _dataCache = _dataCache ?? Ignition.GetIgnite().GetCache<string, byte[]>(_dataCacheName);
 
-            var value = CachedTrades.GetOrAdd(entry.Key, k => _dataCache[k]);
+            var value = CachedTrades.GetOrAdd(entry.Key, k => Serializer.ByteArrayToObject<Trade>(_dataCache[k]));
 
             return ScanQueryFilter.FilterTrade(value);
         }
