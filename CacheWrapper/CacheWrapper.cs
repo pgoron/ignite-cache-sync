@@ -314,7 +314,7 @@ namespace CacheWrapper
             scanSw.Stop();
             totalSw.Stop();
             
-            Console.WriteLine("[CacheWrapper] Query execution summary : Scan={0}, Send={1}, Total={2}, MatchCount={3}", scanSw.Elapsed, sendSw.Elapsed, totalSw.Elapsed, resCount);
+            //Console.WriteLine("[CacheWrapper] Query execution summary : Scan={0}, Send={1}, Total={2}, MatchCount={3}", scanSw.Elapsed, sendSw.Elapsed, totalSw.Elapsed, resCount);
             return resCount;
         }
 

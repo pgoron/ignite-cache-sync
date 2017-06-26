@@ -9,7 +9,7 @@ namespace IgniteBenchmark
         static void Main(string[] args)
         {
             BenchmarkRunner.Run<ScanQueryBench>(GetConfig());
-            //new ScanQueryBench().CachedScanQuery();
+            //new ScanQueryBench().ComputeScanQuery();
         }
 
         private static IConfig GetConfig()

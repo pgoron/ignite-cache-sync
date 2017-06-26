@@ -59,6 +59,10 @@
     <None Include="packages.config" />
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\CacheWrapper\CacheWrapper.csproj">
+      <Project>{5C765782-B1C7-4242-A373-2B90022C1D63}</Project>
+      <Name>CacheWrapper</Name>
+    </ProjectReference>
     <ProjectReference Include="..\Ignite2\Ignite2.csproj">
       <Project>{13834158-8AFB-46A7-9C17-BCF033ACF78B}</Project>
       <Name>Ignite2</Name>

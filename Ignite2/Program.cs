@@ -111,7 +111,12 @@ namespace Ignite2
 
         public bool Invoke(ICacheEntry<string, Trade> entry)
         {
-            return entry.Value.Product.Flows.Any(f => f.Currency == "EUR" && f.Index == "EON1");
+            return FilterTrade(entry.Value);
+        }
+
+        public static bool FilterTrade(Trade value)
+        {
+            return value.Product.Flows.Any(f => f.Currency == "EUR" && f.Index == "EON1");
         }
 
         #endregion
@@ -129,7 +134,7 @@ namespace Ignite2
         {
             var value = CachedTrades.GetOrAdd(entry.Key, k => entry.Value.Deserialize<Trade>());
 
-            return value.Product.Flows.Any(f => f.Currency == "EUR" && f.Index == "EON1");
+            return ScanQueryFilter.FilterTrade(value);
         }
 
         #endregion
@@ -158,7 +163,7 @@ namespace Ignite2
 
             var value = CachedTrades.GetOrAdd(entry.Key, k => _dataCache[k]);
 
-            return value.Product.Flows.Any(f => f.Currency == "EUR" && f.Index == "EON1");
+            return ScanQueryFilter.FilterTrade(value);
         }
     }
 }

@@ -36,11 +36,11 @@ namespace CacheWrapper
             _cacheWrappers = new ConcurrentDictionary<string, Lazy<ICacheWrapper>>();
             _ignite = ignite;
 
-            var events = _ignite.GetEvents();
-            events.EnableLocal(EventType.CacheStarted, EventType.CacheStopped, EventType.CacheRebalanceStopped, EventType.CacheObjectPut, EventType.CacheObjectRemoved, EventType.CacheRebalanceObjectLoaded, EventType.CacheRebalanceObjectUnloaded);
-            events.LocalListen(new CacheStartedStoppedEventListener(this), EventType.CacheStarted, EventType.CacheStopped);
-            events.LocalListen(new CacheRebalanceStoppedEventListener(this), EventType.CacheRebalanceStopped);
-            events.LocalListen(new CacheObjectPutRemovedEventListener(this), EventType.CacheObjectPut, EventType.CacheObjectRemoved, EventType.CacheRebalanceObjectLoaded, EventType.CacheRebalanceObjectUnloaded);
+            //var events = _ignite.GetEvents();
+            //events.EnableLocal(EventType.CacheStarted, EventType.CacheStopped, EventType.CacheRebalanceStopped, EventType.CacheObjectPut, EventType.CacheObjectRemoved, EventType.CacheRebalanceObjectLoaded, EventType.CacheRebalanceObjectUnloaded);
+            //events.LocalListen(new CacheStartedStoppedEventListener(this), EventType.CacheStarted, EventType.CacheStopped);
+            //events.LocalListen(new CacheRebalanceStoppedEventListener(this), EventType.CacheRebalanceStopped);
+            //events.LocalListen(new CacheObjectPutRemovedEventListener(this), EventType.CacheObjectPut, EventType.CacheObjectRemoved, EventType.CacheRebalanceObjectLoaded, EventType.CacheRebalanceObjectUnloaded);
 
             _cacheWrapperConfCache = _ignite.GetOrCreateCache<string, CacheWrapperConfiguration>(new CacheConfiguration(CacheWrapperConfCacheName)
             {

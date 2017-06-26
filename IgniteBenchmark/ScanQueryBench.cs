@@ -2,6 +2,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
 using Apache.Ignite.Core;
 using Apache.Ignite.Core.Binary;
 using Apache.Ignite.Core.Cache;
@@ -9,6 +10,7 @@ using Apache.Ignite.Core.Cache.Query;
 using Apache.Ignite.Core.Discovery.Tcp;
 using Apache.Ignite.Core.Discovery.Tcp.Static;
 using BenchmarkDotNet.Attributes;
+using CacheWrapper;
 using Ignite2;
 
 namespace IgniteBenchmark
@@ -18,6 +20,7 @@ namespace IgniteBenchmark
         private readonly ICache<string, Trade> _cache;
         private readonly ICache<string, IBinaryObject> _binCache;
         private readonly ICache<string, int> _zeroValueCache;
+        private readonly ICacheWrapper<string, Trade> _wrappedCache;
 
         public ScanQueryBench()
         {
@@ -47,6 +50,9 @@ namespace IgniteBenchmark
 
             _zeroValueCache = ignite.CreateCache<string, int>("zeroVal");
             _zeroValueCache.PutAll(_cache.Select(x => new KeyValuePair<string, int>(x.Key, 0)));
+
+            _wrappedCache = ignite.GetOrCreateCacheWrapper<string, Trade>(
+                new CacheWrapperConfiguration {Name = _cache.Name});
         }
 
         [Benchmark]
@@ -95,7 +101,15 @@ namespace IgniteBenchmark
             ValidateResults(res);
         }
 
-        private static void ValidateResults<T>(ICollection<ICacheEntry<string, T>> res)
+        [Benchmark]
+        public void ComputeScanQuery()
+        {
+            var res = _wrappedCache.ScanQuery(new ScanQueryFilter(), CancellationToken.None).ToList();
+
+            ValidateResults(res);
+        }
+
+        private static void ValidateResults<T>(ICollection<T> res)
         {
             if (res.Count != 0)
             {
