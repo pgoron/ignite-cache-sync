@@ -19,6 +19,7 @@ namespace IgniteBenchmark
 {
     public class ScanQueryBench
     {
+        private const int Count = 1000;
         private readonly ICache<string, byte[]> _cache;
         private readonly ICache<string, int> _zeroValueCache;
         private readonly ICacheWrapper<string, Trade> _wrappedCache;
@@ -51,7 +52,7 @@ namespace IgniteBenchmark
 
             using (var ldr = ignite.GetDataStreamer<string, byte[]>(_cache.Name))
             {
-                Parallel.ForEach(Ignite2.Program.GenerateTestData(1000), x =>
+                Parallel.ForEach(Ignite2.Program.GenerateTestData(Count), x =>
                 {
                     var bytes = Serializer.ObjectToByteArray(x.Value);
                     Console.WriteLine(bytes.Length);
@@ -136,7 +137,7 @@ namespace IgniteBenchmark
 
         private static void ValidateResults<T>(ICollection<T> res)
         {
-            if (res.Count != 100)
+            if (res.Count != Count)
             {
                 throw new InvalidOperationException("Invalid results: " + res.Count);
             }
