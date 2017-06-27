@@ -108,9 +108,7 @@ namespace IgniteBenchmark
         [Benchmark]
         public void ComputeScanQuery()
         {
-            var res = _wrappedCache.ScanQuery(new ScanQueryFilter(), CancellationToken.None)
-                .Select(x => new KeyValuePair<string, Trade>(x.Key, Serializer.ByteArrayToObject<Trade>(x.Value)))
-                .ToList();
+            var res = _wrappedCache.ScanQuery(new ScanQueryFilter(), CancellationToken.None).ToList();
 
             ValidateResults(res);
         }
