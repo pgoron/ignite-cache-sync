@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
+using System.Threading.Tasks;
 using Apache.Ignite.Core;
 using Apache.Ignite.Core.Binary;
 using Apache.Ignite.Core.Cache;
@@ -36,22 +37,42 @@ namespace IgniteBenchmark
                 }
             };
 
-            var ignite = Ignition.Start(cfg);
+            Ignition.Start(cfg);
 
             // Start more nodes.
             cfg.AutoGenerateIgniteInstanceName = true;
-            //Ignition.Start(cfg);
+            cfg.ClientMode = true;
+            var ignite = Ignition.Start(cfg);
 
             // Prepare caches.
             _cache = ignite.CreateCache<string, byte[]>("cache");
-            _cache.PutAll(Ignite2.Program.GenerateTestData(100)
-                .Select(x => new KeyValuePair<string, byte[]>(x.Key, Serializer.ObjectToByteArray(x.Value))));
+
+            long totalSize = 0;
+
+            using (var ldr = ignite.GetDataStreamer<string, byte[]>(_cache.Name))
+            {
+                Parallel.ForEach(Ignite2.Program.GenerateTestData(1000), x =>
+                {
+                    var bytes = Serializer.ObjectToByteArray(x.Value);
+                    Console.WriteLine(bytes.Length);
+                    ldr.AddData(x.Key, bytes);
+                    Interlocked.Add(ref totalSize, bytes.LongLength);
+                });
+
+                ldr.Flush();
+            }
+
+            Console.WriteLine("Total object size: " + totalSize);
+            //Console.ReadKey();
+
+            //_cache.PutAll(Ignite2.Program.GenerateTestData(100).AsParallel()
+            //    .Select(x => new KeyValuePair<string, byte[]>(x.Key, Serializer.ObjectToByteArray(x.Value))));
 
             _zeroValueCache = ignite.CreateCache<string, int>("zeroVal");
             _zeroValueCache.PutAll(_cache.Select(x => new KeyValuePair<string, int>(x.Key, 0)));
 
-            _wrappedCache = GetCacheWrapper(_cache);
-            _wrappedCache.Sync();  // TODO: This does not work properly with two nodes in one process.
+            //_wrappedCache = GetCacheWrapper(_cache);
+            //_wrappedCache.Sync();  // TODO: This does not work properly with two nodes in one process.
         }
 
         private static ICacheWrapper<string, Trade> GetCacheWrapper(ICache<string, byte[]> igniteCache)
@@ -59,7 +80,7 @@ namespace IgniteBenchmark
             return igniteCache.Ignite.GetOrCreateCacheWrapper<string, Trade>(new CacheWrapperConfiguration { Name = igniteCache.Name });
         }
 
-        [Benchmark]
+        //[Benchmark]
         public void NormalScanQuery()
         {
             var res = _cache.Query(new ScanQuery<string, byte[]>
@@ -81,7 +102,7 @@ namespace IgniteBenchmark
             ValidateResults(res);
         }
 
-        [Benchmark]
+        //[Benchmark]
         public void TwoCacheScanQuery()
         {
             var keys = _zeroValueCache.Query(new ScanQuery<string, int>
@@ -94,7 +115,7 @@ namespace IgniteBenchmark
             ValidateResults(res);
         }
 
-        [Benchmark]
+        //[Benchmark]
         public void ZeroValueScanQuery()
         {
             var res = _zeroValueCache.Query(new ScanQuery<string, int>
@@ -105,7 +126,7 @@ namespace IgniteBenchmark
             ValidateResults(res);
         }
 
-        [Benchmark]
+        //[Benchmark]
         public void ComputeScanQuery()
         {
             var res = _wrappedCache.ScanQuery(new ScanQueryFilter(), CancellationToken.None).ToList();

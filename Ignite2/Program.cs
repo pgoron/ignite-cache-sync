@@ -50,7 +50,7 @@ namespace Ignite2
                     Product = new Product { Instrument = "Swap" }
                 };
 
-                foreach (var j in Enumerable.Range(1, 200))
+                foreach (var j in Enumerable.Range(1, 11000))
                 {
                     trade.Product.Flows.Add(new Flow
                     {
