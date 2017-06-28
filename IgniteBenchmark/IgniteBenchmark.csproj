@@ -33,8 +33,9 @@
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
   <ItemGroup>
-    <Reference Include="Apache.Ignite.Core, Version=2.0.0.19668, Culture=neutral, PublicKeyToken=a487a7ff0b2aaa4a, processorArchitecture=MSIL">
-      <HintPath>..\packages\Apache.Ignite.2.0.0\lib\net40\Apache.Ignite.Core.dll</HintPath>
+    <Reference Include="Apache.Ignite.Core, Version=2.1.0.19388, Culture=neutral, PublicKeyToken=a487a7ff0b2aaa4a, processorArchitecture=AMD64">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>..\..\..\incubator-ignite\modules\platforms\dotnet\Apache.Ignite.Core\bin\x64\Debug\Apache.Ignite.Core.dll</HintPath>
     </Reference>
     <Reference Include="BenchmarkDotNet, Version=0.9.7.0, Culture=neutral, PublicKeyToken=aa0ca2f9092cefc4, processorArchitecture=MSIL">
       <HintPath>..\packages\BenchmarkDotNet.0.9.7\lib\net40\BenchmarkDotNet.dll</HintPath>

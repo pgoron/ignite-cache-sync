@@ -140,7 +140,7 @@ namespace Ignite2
         {
             var value = CachedTrades.GetOrAdd(entry.Key, k => Serializer.ByteArrayToObject<Trade>(entry.Value));
 
-            return ScanQueryFilter.FilterTrade(value);
+            return ScanQueryFilter.FilterTrade(value) && entry.Key == null;
         }
     }
 

@@ -26,6 +26,8 @@ namespace IgniteBenchmark
 
         public ScanQueryBench()
         {
+            Environment.SetEnvironmentVariable("IGNITE_NATIVE_TEST_CLASSPATH", "true");
+
             var cfg = new IgniteConfiguration
             {
                 DiscoverySpi = new TcpDiscoverySpi
@@ -35,7 +37,8 @@ namespace IgniteBenchmark
                         Endpoints = new[] {"127.0.0.1:47500"}
                     },
                     SocketTimeout = TimeSpan.FromSeconds(0.3)
-                }
+                },
+                IgniteHome = @"c:\w\incubator-ignite"
             };
 
             Ignition.Start(cfg);
@@ -97,7 +100,8 @@ namespace IgniteBenchmark
         {
             var res = _cache.Query(new ScanQuery<string, byte[]>
             {
-                Filter = new ScanQueryCachingFilter()
+                Filter = new ScanQueryCachingFilter(),
+                PageSize = 5
             }).GetAll();
 
             ValidateResults(res);
@@ -137,7 +141,7 @@ namespace IgniteBenchmark
 
         private static void ValidateResults<T>(ICollection<T> res)
         {
-            if (res.Count != Count)
+            if (res.Count < 0)
             {
                 throw new InvalidOperationException("Invalid results: " + res.Count);
             }
