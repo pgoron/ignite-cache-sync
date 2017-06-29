@@ -19,7 +19,7 @@ namespace IgniteBenchmark
 {
     public class ScanQueryBench
     {
-        private const int Count = 1000;
+        private const int Count = 30000;  // 3 GB
         private readonly ICache<string, byte[]> _cache;
         private readonly ICache<string, int> _zeroValueCache;
         private readonly ICacheWrapper<string, Trade> _wrappedCache;
@@ -53,20 +53,34 @@ namespace IgniteBenchmark
 
             long totalSize = 0;
 
+            var bytes = Serializer.ObjectToByteArray(Ignite2.Program.GenerateTestData(1).Single().Value);
+
             using (var ldr = ignite.GetDataStreamer<string, byte[]>(_cache.Name))
             {
-                Parallel.ForEach(Ignite2.Program.GenerateTestData(Count), x =>
+                ldr.PerNodeBufferSize = 10;
+                //Parallel.ForEach(Ignite2.Program.GenerateTestData(Count), x =>
+                //{
+                //    var bytes = Serializer.ObjectToByteArray(x.Value);
+                //    Console.WriteLine(bytes.Length);
+                //    ldr.AddData(x.Key, bytes);
+                //    Interlocked.Add(ref totalSize, bytes.LongLength);
+                //});
+
+                for (int i = 0; i < Count; i++)
                 {
-                    var bytes = Serializer.ObjectToByteArray(x.Value);
-                    Console.WriteLine(bytes.Length);
-                    ldr.AddData(x.Key, bytes);
-                    Interlocked.Add(ref totalSize, bytes.LongLength);
-                });
+                    ldr.AddData(i.ToString(), bytes);
+                    if (i % 100 == 0)
+                    {
+                        Console.WriteLine(i);
+                    }
+                }
 
                 ldr.Flush();
             }
 
-            Console.WriteLine("Total object size: " + totalSize);
+            Console.WriteLine("streaming done");
+
+            //Console.WriteLine("Total object size: " + totalSize);
             //Console.ReadKey();
 
             //_cache.PutAll(Ignite2.Program.GenerateTestData(100).AsParallel()
