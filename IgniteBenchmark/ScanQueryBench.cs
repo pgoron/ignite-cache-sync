@@ -19,14 +19,16 @@ namespace IgniteBenchmark
 {
     public class ScanQueryBench
     {
-        private const int Count = 30000;  // 3 GB
+        private const int Count = 100000; 
         private readonly ICache<string, byte[]> _cache;
         private readonly ICache<string, int> _zeroValueCache;
         private readonly ICacheWrapper<string, Trade> _wrappedCache;
+        private static readonly IList<string> JvmDebugOpts =
+            new List<string> { "-Xdebug", "-Xnoagent", "-Djava.compiler=NONE", "-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=5005" };
 
         public ScanQueryBench()
         {
-            Environment.SetEnvironmentVariable("IGNITE_NATIVE_TEST_CLASSPATH", "true");
+            //Environment.SetEnvironmentVariable("IGNITE_NATIVE_TEST_CLASSPATH", "true");
 
             var cfg = new IgniteConfiguration
             {
@@ -38,7 +40,8 @@ namespace IgniteBenchmark
                     },
                     SocketTimeout = TimeSpan.FromSeconds(0.3)
                 },
-                IgniteHome = @"c:\w\incubator-ignite"
+                IgniteHome = @"c:\w\incubator-ignite",
+                //JvmOptions = JvmDebugOpts
             };
 
             Ignition.Start(cfg);
@@ -53,7 +56,8 @@ namespace IgniteBenchmark
 
             long totalSize = 0;
 
-            var bytes = Serializer.ObjectToByteArray(Ignite2.Program.GenerateTestData(1).Single().Value);
+            var trade = Ignite2.Program.GenerateTestData(1).Single().Value;
+            var bytes = Serializer.ObjectToByteArray(trade);
 
             using (var ldr = ignite.GetDataStreamer<string, byte[]>(_cache.Name))
             {
@@ -68,7 +72,9 @@ namespace IgniteBenchmark
 
                 for (int i = 0; i < Count; i++)
                 {
-                    ldr.AddData(i.ToString(), bytes);
+                    var key = i.ToString();
+                    ldr.AddData(key, bytes);
+                    ScanQueryCachingFilter.CachedTrades.TryAdd(key, trade);
                     if (i % 100 == 0)
                     {
                         Console.WriteLine(i);
@@ -86,8 +92,8 @@ namespace IgniteBenchmark
             //_cache.PutAll(Ignite2.Program.GenerateTestData(100).AsParallel()
             //    .Select(x => new KeyValuePair<string, byte[]>(x.Key, Serializer.ObjectToByteArray(x.Value))));
 
-            _zeroValueCache = ignite.CreateCache<string, int>("zeroVal");
-            _zeroValueCache.PutAll(_cache.Select(x => new KeyValuePair<string, int>(x.Key, 0)));
+            //_zeroValueCache = ignite.CreateCache<string, int>("zeroVal");
+            //_zeroValueCache.PutAll(_cache.Select(x => new KeyValuePair<string, int>(x.Key, 0)));
 
             //_wrappedCache = GetCacheWrapper(_cache);
             //_wrappedCache.Sync();  // TODO: This does not work properly with two nodes in one process.

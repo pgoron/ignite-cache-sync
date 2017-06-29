@@ -133,7 +133,7 @@ namespace Ignite2
     [Serializable]
     public class ScanQueryCachingFilter : ICacheEntryFilter<string, byte[]>
     {
-        private static readonly ConcurrentDictionary<string, Trade> CachedTrades 
+        public static readonly ConcurrentDictionary<string, Trade> CachedTrades 
             = new ConcurrentDictionary<string, Trade>();
 
         public bool Invoke(ICacheEntry<string, byte[]> entry)

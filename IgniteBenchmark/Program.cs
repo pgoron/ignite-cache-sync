@@ -1,4 +1,6 @@
-﻿using BenchmarkDotNet.Configs;
+﻿using System;
+using System.Diagnostics;
+using BenchmarkDotNet.Configs;
 using BenchmarkDotNet.Jobs;
 using BenchmarkDotNet.Running;
 
@@ -12,7 +14,18 @@ namespace IgniteBenchmark
             
             //new ScanQueryBench().ComputeScanQuery();
             //new ScanQueryBench().NormalScanQuery();
-            new ScanQueryBench().CachedScanQuery();
+
+
+            var scanQueryBench = new ScanQueryBench();
+            Console.WriteLine("WARMUP...");
+            scanQueryBench.CachedScanQuery();
+            scanQueryBench.CachedScanQuery();
+
+            Console.WriteLine("BENCH...");
+            var sw = Stopwatch.StartNew();
+            scanQueryBench.CachedScanQuery();
+            Console.WriteLine(sw.Elapsed);
+
             //new ScanQueryBench().TwoCacheScanQuery();
         }
 

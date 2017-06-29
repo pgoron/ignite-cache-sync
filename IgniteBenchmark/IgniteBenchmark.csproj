@@ -31,6 +31,7 @@
     <DefineConstants>TRACE</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
+    <Prefer32Bit>false</Prefer32Bit>
   </PropertyGroup>
   <ItemGroup>
     <Reference Include="Apache.Ignite.Core, Version=2.1.0.19388, Culture=neutral, PublicKeyToken=a487a7ff0b2aaa4a, processorArchitecture=AMD64">
