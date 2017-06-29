@@ -70,12 +70,27 @@ namespace IgniteBenchmark
 
                 ldr.Flush();
             }
+
+            Console.WriteLine("ldr finished");
         }
 
         [Benchmark]
         public void GetAllBenchmark()
         {
             var res = _cache.GetAll(_keys);
+            ValidateResult(res.Count);
+        }
+
+        [Benchmark]
+        public void IterateBenchmark()
+        {
+            var res = new List<object>(_keys.Count);
+
+            foreach (var key in _keys)
+            {
+                res.Add(_cache.Get(key));
+            }
+
             ValidateResult(res.Count);
         }
 
@@ -87,7 +102,7 @@ namespace IgniteBenchmark
             }
         }
 
-        [Benchmark]
+        //[Benchmark]
         public void SqlBenchmark()
         {
             var sqlFieldsQuery = new SqlFieldsQuery(
