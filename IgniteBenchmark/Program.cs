@@ -26,12 +26,11 @@ namespace IgniteBenchmark
 
 
             Console.WriteLine("WARMUP...");
-            scanQueryBench.CachedScanQuery();
-            scanQueryBench.CachedScanQuery();
+            scanQueryBench.TwoCacheScanQuery();
 
             Console.WriteLine("BENCH...");
             var sw = Stopwatch.StartNew();
-            scanQueryBench.CachedScanQuery();
+            scanQueryBench.TwoCacheScanQuery();
             Console.WriteLine(sw.Elapsed);
 
             //new ScanQueryBench().TwoCacheScanQuery();

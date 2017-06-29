@@ -53,6 +53,7 @@ namespace IgniteBenchmark
 
             // Prepare caches.
             _cache = ignite.GetOrCreateCache<string, byte[]>("cache");
+            _zeroValueCache = ignite.GetOrCreateCache<string, int>("zeroVal");
 
             if (_cache.GetSize() > 0)
             {
@@ -77,6 +78,7 @@ namespace IgniteBenchmark
                 {
                     var key = i.ToString();
                     ldr.AddData(key, bytes);
+                    _zeroValueCache.Put(key, 0);
                     ScanQueryCachingFilter.CachedTrades.TryAdd(key, trade);
                     if (i % 1000 == 0)
                     {
@@ -130,7 +132,7 @@ namespace IgniteBenchmark
             ValidateResults(res);
         }
 
-        //[Benchmark]
+        [Benchmark]
         public void TwoCacheScanQuery()
         {
             var keys = _zeroValueCache.Query(new ScanQuery<string, int>

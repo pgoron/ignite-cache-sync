@@ -140,16 +140,13 @@ namespace Ignite2
         {
             var value = CachedTrades.GetOrAdd(entry.Key, k => Serializer.ByteArrayToObject<Trade>(entry.Value));
 
-            return ScanQueryFilter.FilterTrade(value) && entry.Key == null;
+            return ScanQueryFilter.FilterTrade(value);
         }
     }
 
     [Serializable]
     public class ScanQueryKeyOnlyFilter : ICacheEntryFilter<string, int>
     {
-        private static readonly ConcurrentDictionary<string, Trade> CachedTrades 
-            = new ConcurrentDictionary<string, Trade>();
-
         private readonly string _dataCacheName;
         
         [NonSerialized]
@@ -165,9 +162,9 @@ namespace Ignite2
         {
             _dataCache = _dataCache ?? Ignition.GetIgnite().GetCache<string, byte[]>(_dataCacheName);
 
-            var value = CachedTrades.GetOrAdd(entry.Key, k => Serializer.ByteArrayToObject<Trade>(_dataCache[k]));
+            var value = ScanQueryCachingFilter.CachedTrades.GetOrAdd(entry.Key, k => Serializer.ByteArrayToObject<Trade>(_dataCache[k]));
 
-            return ScanQueryFilter.FilterTrade(value);
+            return ScanQueryFilter.FilterTrade(value) && entry.Key == "1";
         }
     }
 }
