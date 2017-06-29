@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Diagnostics;
+using System.Threading;
 using BenchmarkDotNet.Configs;
 using BenchmarkDotNet.Jobs;
 using BenchmarkDotNet.Running;
@@ -10,13 +11,20 @@ namespace IgniteBenchmark
     {
         static void Main(string[] args)
         {
+            var scanQueryBench = new ScanQueryBench();
+
+            if (args.Length > 0)
+            {
+                Console.WriteLine("STARTED");
+                Thread.Sleep(Timeout.Infinite);
+            }
+
             //BenchmarkRunner.Run<ScanQueryBench>(GetConfig());
             
             //new ScanQueryBench().ComputeScanQuery();
             //new ScanQueryBench().NormalScanQuery();
 
 
-            var scanQueryBench = new ScanQueryBench();
             Console.WriteLine("WARMUP...");
             scanQueryBench.CachedScanQuery();
             scanQueryBench.CachedScanQuery();
@@ -27,6 +35,8 @@ namespace IgniteBenchmark
             Console.WriteLine(sw.Elapsed);
 
             //new ScanQueryBench().TwoCacheScanQuery();
+
+            Console.ReadKey();
         }
 
         private static IConfig GetConfig()

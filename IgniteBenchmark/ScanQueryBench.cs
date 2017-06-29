@@ -52,9 +52,12 @@ namespace IgniteBenchmark
             var ignite = Ignition.Start(cfg);
 
             // Prepare caches.
-            _cache = ignite.CreateCache<string, byte[]>("cache");
+            _cache = ignite.GetOrCreateCache<string, byte[]>("cache");
 
-            long totalSize = 0;
+            if (_cache.GetSize() > 0)
+            {
+                return;
+            }
 
             var trade = Ignite2.Program.GenerateTestData(1).Single().Value;
             var bytes = Serializer.ObjectToByteArray(trade);
