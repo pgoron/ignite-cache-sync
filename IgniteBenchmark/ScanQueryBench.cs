@@ -40,7 +40,7 @@ namespace IgniteBenchmark
                     },
                     SocketTimeout = TimeSpan.FromSeconds(0.3)
                 },
-                IgniteHome = @"c:\w\incubator-ignite",
+                //IgniteHome = @"c:\w\incubator-ignite",
                 //JvmOptions = JvmDebugOpts
             };
 
