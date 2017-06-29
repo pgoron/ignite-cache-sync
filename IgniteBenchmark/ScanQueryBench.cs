@@ -75,7 +75,7 @@ namespace IgniteBenchmark
                     var key = i.ToString();
                     ldr.AddData(key, bytes);
                     ScanQueryCachingFilter.CachedTrades.TryAdd(key, trade);
-                    if (i % 100 == 0)
+                    if (i % 1000 == 0)
                     {
                         Console.WriteLine(i);
                     }
